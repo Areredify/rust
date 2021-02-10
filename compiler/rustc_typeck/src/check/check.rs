@@ -15,9 +15,11 @@ use rustc_middle::ty::fold::TypeFoldable;
 use rustc_middle::ty::layout::MAX_SIMD_LANES;
 use rustc_middle::ty::subst::GenericArgKind;
 use rustc_middle::ty::util::{Discr, IntTypeExt, Representability};
-use rustc_middle::ty::{self, ParamEnv, RegionKind, ToPredicate, Ty, TyCtxt};
+use rustc_middle::ty::{self, AdtDef, ParamEnv, RegionKind, ToPredicate, Ty, TyCtxt, Visibility};
 use rustc_session::config::EntryFnType;
-use rustc_session::lint::builtin::UNINHABITED_STATIC;
+use rustc_session::lint::builtin::{
+    EXTERNAL_NON_EXHAUSTIVE_MEMBERS_IN_TRANSPARENT_TYPES, UNINHABITED_STATIC,
+};
 use rustc_span::symbol::sym;
 use rustc_span::{self, MultiSpan, Span};
 use rustc_target::spec::abi::Abi;
@@ -1311,7 +1313,8 @@ pub(super) fn check_transparent<'tcx>(tcx: TyCtxt<'tcx>, sp: Span, adt: &'tcx ty
         }
     }
 
-    // For each field, figure out if it's known to be a ZST and align(1)
+    // For each field, figure out if it's known to be a ZST, align(1) and
+    // whether it contains non-local #[non_exhaustive] types/types with private fields
     let field_infos = adt.all_fields().map(|field| {
         let ty = field.ty(tcx, InternalSubsts::identity_for_item(tcx, field.did));
         let param_env = tcx.param_env(field.did);
@@ -1320,17 +1323,54 @@ pub(super) fn check_transparent<'tcx>(tcx: TyCtxt<'tcx>, sp: Span, adt: &'tcx ty
         let span = tcx.hir().span_if_local(field.did).unwrap();
         let zst = layout.map_or(false, |layout| layout.is_zst());
         let align1 = layout.map_or(false, |layout| layout.align.abi.bytes() == 1);
-        (span, zst, align1)
+        // don't collect #[non_exhaustive] and private field info if the field
+        // is not zst
+        if !zst {
+            return (span, None, align1);
+        }
+
+        struct AdtVisitor<'tcx>(Vec<&'tcx AdtDef>);
+        impl<'tcx> ty::fold::TypeVisitor<'tcx> for AdtVisitor<'tcx> {
+            fn visit_ty(&mut self, t: Ty<'tcx>) -> ControlFlow<Self::BreakTy> {
+                match *t.kind() {
+                    ty::Adt(def, _) => {
+                        self.0.push(def);
+                        ControlFlow::CONTINUE
+                    }
+                    _ => t.super_visit_with(self),
+                }
+            }
+        };
+
+        let mut visitor = AdtVisitor(vec![]);
+        ty.visit_with(&mut visitor);
+        let (mut adts_with_non_exhaustive, mut adts_with_private_fields) = (vec![], vec![]);
+        for adt in visitor.0 {
+            if adt.did.is_local() {
+                continue;
+            }
+            if adt.is_variant_list_non_exhaustive()
+                || adt.variants.iter().any(|v| v.is_field_list_non_exhaustive())
+            {
+                adts_with_non_exhaustive.push(adt.did);
+            }
+            if adt.all_fields().any(|f| f.vis != Visibility::Public) {
+                adts_with_private_fields.push(adt.did);
+            }
+        }
+
+        (span, Some((adts_with_non_exhaustive, adts_with_private_fields)), align1)
     });
 
-    let non_zst_fields =
-        field_infos.clone().filter_map(|(span, zst, _align1)| if !zst { Some(span) } else { None });
+    let non_zst_fields = field_infos
+        .clone()
+        .filter_map(|(span, zst_info, _align1)| if zst_info.is_none() { Some(span) } else { None });
     let non_zst_count = non_zst_fields.clone().count();
     if non_zst_count != 1 {
         bad_non_zero_sized_fields(tcx, adt, non_zst_count, non_zst_fields, sp);
     }
-    for (span, zst, align1) in field_infos {
-        if zst && !align1 {
+    for (span, zst_info, align1) in field_infos {
+        if zst_info.is_some() && !align1 {
             struct_span_err!(
                 tcx.sess,
                 span,
@@ -1340,6 +1380,25 @@ pub(super) fn check_transparent<'tcx>(tcx: TyCtxt<'tcx>, sp: Span, adt: &'tcx ty
             )
             .span_label(span, "has alignment larger than 1")
             .emit();
+        }
+        if let Some((adts_with_non_exhaustive, adts_with_private_fields)) = zst_info {
+            for member_did in adts_with_non_exhaustive {
+                let note_msg = format!(
+                    "this field is or contains an external type `{}` that is marked #[non_exhaustive]",
+                    tcx.def_path_str(member_did)
+                );
+                tcx.struct_span_lint_hir(
+                    EXTERNAL_NON_EXHAUSTIVE_MEMBERS_IN_TRANSPARENT_TYPES,
+                    tcx.hir().local_def_id_to_hir_id(adt.did.expect_local()),
+                    span,
+                    |lint| {
+                        lint.build("transparent types can't contain external non-exhaustive types")
+                            .span_note(span, &note_msg)
+                            .note("this was erroneously allowed, but is being phased out")
+                            .emit()
+                    },
+                )
+            }
         }
     }
 }

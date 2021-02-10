@@ -2967,6 +2967,60 @@ declare_lint! {
     };
 }
 
+declare_lint! {
+    /// The `external_non_exhaustive_members_in_transparent_types` lint
+    /// detects types marked #[repr(trasparent)] that (transitively)
+    /// contain an external ZST type marked #[non_exhaustive]
+    ///
+    /// ### Example
+    ///
+    /// ```rust,ignore (needs external crate)
+    /// #![deny(external_non_exhaustive_members_in_transparent_types)]
+    /// use foo::NonExhaustiveZst;
+    ///
+    /// #[repr(transparent)]
+    /// struct Bar(u32, ([u32; 0], NonExhaustiveZst));
+    /// ```
+    ///
+    /// This will produce:
+    ///
+    /// ```text
+    /// error: deprecated `#[macro_use]` attribute used to import macros should be replaced at use sites with a `use` item to import the macro instead
+    ///  --> src/main.rs:3:1
+    ///   |
+    /// 3 | #[macro_use]
+    ///   | ^^^^^^^^^^^^
+    ///   |
+    /// note: the lint level is defined here
+    ///  --> src/main.rs:1:9
+    ///   |
+    /// 1 | #![deny(macro_use_extern_crate)]
+    ///   |         ^^^^^^^^^^^^^^^^^^^^^^
+    /// ```
+    ///
+    /// ### Explanation
+    ///
+    /// Previous, Rust ignored trailing semicolon in a macro
+    /// body when a macro was invoked in expression position.
+    /// However, this makes the treatment of semicolons in the language
+    /// inconsistent, and could lead to unexpected runtime behavior
+    /// in some circumstances (e.g. if the macro author expects
+    /// a value to be dropped).
+    ///
+    /// This is a [future-incompatible] lint to transition this
+    /// to a hard error in the future. See [issue #78586] for more details.
+    ///
+    /// [issue #79813]: https://github.com/rust-lang/rust/issues/79813
+    /// [future-incompatible]: ../index.md#future-incompatible-lints
+    pub EXTERNAL_NON_EXHAUSTIVE_MEMBERS_IN_TRANSPARENT_TYPES,
+    Allow,
+    "tranparent type contains an external ZST that is marked #[non_exhaustive]",
+    @future_incompatible = FutureIncompatibleInfo {
+        reference: "issue #78586 <https://github.com/rust-lang/rust/issues/78586>",
+        edition: None,
+    };
+}
+
 declare_lint_pass! {
     /// Does nothing as a lint pass, but registers some `Lint`s
     /// that are used by other parts of the compiler.

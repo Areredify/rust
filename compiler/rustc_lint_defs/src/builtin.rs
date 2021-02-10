@@ -3013,7 +3013,7 @@ declare_lint! {
     /// [issue #79813]: https://github.com/rust-lang/rust/issues/79813
     /// [future-incompatible]: ../index.md#future-incompatible-lints
     pub EXTERNAL_NON_EXHAUSTIVE_MEMBERS_IN_TRANSPARENT_TYPES,
-    Allow,
+    Warn,
     "tranparent type contains an external ZST that is marked #[non_exhaustive]",
     @future_incompatible = FutureIncompatibleInfo {
         reference: "issue #78586 <https://github.com/rust-lang/rust/issues/78586>",
@@ -3112,6 +3112,7 @@ declare_lint_pass! {
         SEMICOLON_IN_EXPRESSIONS_FROM_MACROS,
         DISJOINT_CAPTURE_DROP_REORDER,
         LEGACY_DERIVE_HELPERS,
+        EXTERNAL_NON_EXHAUSTIVE_MEMBERS_IN_TRANSPARENT_TYPES,
     ]
 }
 

@@ -1314,7 +1314,7 @@ pub(super) fn check_transparent<'tcx>(tcx: TyCtxt<'tcx>, sp: Span, adt: &'tcx ty
     }
 
     // For each field, figure out if it's known to be a ZST, align(1) and
-    // whether it contains non-local #[non_exhaustive] types/types with private fields
+    // whether it contains non-local #[non_exhaustive] types/non-local types with private fields
     let field_infos = adt.all_fields().map(|field| {
         let ty = field.ty(tcx, InternalSubsts::identity_for_item(tcx, field.did));
         let param_env = tcx.param_env(field.did);
@@ -1335,10 +1335,10 @@ pub(super) fn check_transparent<'tcx>(tcx: TyCtxt<'tcx>, sp: Span, adt: &'tcx ty
                 match *t.kind() {
                     ty::Adt(def, _) => {
                         self.0.push(def);
-                        ControlFlow::CONTINUE
                     }
-                    _ => t.super_visit_with(self),
+                    _ => (),
                 }
+                t.super_visit_with(self)
             }
         };
 
@@ -1383,8 +1383,9 @@ pub(super) fn check_transparent<'tcx>(tcx: TyCtxt<'tcx>, sp: Span, adt: &'tcx ty
         }
         if let Some((adts_with_non_exhaustive, adts_with_private_fields)) = zst_info {
             for member_did in adts_with_non_exhaustive {
+                let lint_msg = format!("zero-sized field in transparent {} can't contain external non-exhaustive types", adt.descr());
                 let note_msg = format!(
-                    "this field is or contains an external type `{}` that is marked #[non_exhaustive]",
+                    "contains external type `{}` marked #[non_exhaustive]",
                     tcx.def_path_str(member_did)
                 );
                 tcx.struct_span_lint_hir(
@@ -1392,9 +1393,8 @@ pub(super) fn check_transparent<'tcx>(tcx: TyCtxt<'tcx>, sp: Span, adt: &'tcx ty
                     tcx.hir().local_def_id_to_hir_id(adt.did.expect_local()),
                     span,
                     |lint| {
-                        lint.build("transparent types can't contain external non-exhaustive types")
-                            .span_note(span, &note_msg)
-                            .note("this was erroneously allowed, but is being phased out")
+                        lint.build(&lint_msg)
+                            .span_label(span, &note_msg)
                             .emit()
                     },
                 )

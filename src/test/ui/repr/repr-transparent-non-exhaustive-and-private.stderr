@@ -1,0 +1,79 @@
+error: zero-sized field in transparent struct can't contain external non-exhaustive types
+  --> $DIR/repr-transparent-non-exhaustive-and-private.rs:9:18
+   |
+LL | struct Foo1(u32, NonExhZstStruct);
+   |                  ^^^^^^^^^^^^^^^ contains external type `repr_transparent_non_exhaustive_and_private::NonExhZstStruct` marked #[non_exhaustive]
+   |
+note: the lint level is defined here
+  --> $DIR/repr-transparent-non-exhaustive-and-private.rs:3:9
+   |
+LL | #![deny(external_non_exhaustive_members_in_transparent_types)]
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #78586 <https://github.com/rust-lang/rust/issues/78586>
+
+error: zero-sized field in transparent struct can't contain external non-exhaustive types
+  --> $DIR/repr-transparent-non-exhaustive-and-private.rs:14:18
+   |
+LL | struct Foo2(u32, NonExhZstEnum);
+   |                  ^^^^^^^^^^^^^ contains external type `repr_transparent_non_exhaustive_and_private::NonExhZstEnum` marked #[non_exhaustive]
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #78586 <https://github.com/rust-lang/rust/issues/78586>
+
+error: zero-sized field in transparent struct can't contain external non-exhaustive types
+  --> $DIR/repr-transparent-non-exhaustive-and-private.rs:19:18
+   |
+LL | struct Foo3(u32, (((NonExhVariantEnum, ()), NonExhZstEnum, ()), ()));
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ contains external type `repr_transparent_non_exhaustive_and_private::NonExhVariantEnum` marked #[non_exhaustive]
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #78586 <https://github.com/rust-lang/rust/issues/78586>
+
+error: zero-sized field in transparent struct can't contain external non-exhaustive types
+  --> $DIR/repr-transparent-non-exhaustive-and-private.rs:19:18
+   |
+LL | struct Foo3(u32, (((NonExhVariantEnum, ()), NonExhZstEnum, ()), ()));
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ contains external type `repr_transparent_non_exhaustive_and_private::NonExhZstEnum` marked #[non_exhaustive]
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #78586 <https://github.com/rust-lang/rust/issues/78586>
+
+error: zero-sized field in transparent struct can't contain external non-exhaustive types
+  --> $DIR/repr-transparent-non-exhaustive-and-private.rs:29:19
+   |
+LL | struct SeveralZst(NonExhZstStruct, u32, NonExhZstStruct);
+   |                   ^^^^^^^^^^^^^^^ contains external type `repr_transparent_non_exhaustive_and_private::NonExhZstStruct` marked #[non_exhaustive]
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #78586 <https://github.com/rust-lang/rust/issues/78586>
+
+error: zero-sized field in transparent struct can't contain external non-exhaustive types
+  --> $DIR/repr-transparent-non-exhaustive-and-private.rs:29:41
+   |
+LL | struct SeveralZst(NonExhZstStruct, u32, NonExhZstStruct);
+   |                                         ^^^^^^^^^^^^^^^ contains external type `repr_transparent_non_exhaustive_and_private::NonExhZstStruct` marked #[non_exhaustive]
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #78586 <https://github.com/rust-lang/rust/issues/78586>
+
+error: zero-sized field in transparent struct can't contain external non-exhaustive types
+  --> $DIR/repr-transparent-non-exhaustive-and-private.rs:36:18
+   |
+LL | struct Foo4(u32, std::marker::PhantomData<NonExhZstStruct>);
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ contains external type `repr_transparent_non_exhaustive_and_private::NonExhZstStruct` marked #[non_exhaustive]
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #78586 <https://github.com/rust-lang/rust/issues/78586>
+
+error: zero-sized field in transparent struct can't contain external non-exhaustive types
+  --> $DIR/repr-transparent-non-exhaustive-and-private.rs:43:25
+   |
+LL | struct IndirectZst(u32, Bar<NonExhZstStruct>);
+   |                         ^^^^^^^^^^^^^^^^^^^^ contains external type `repr_transparent_non_exhaustive_and_private::NonExhZstStruct` marked #[non_exhaustive]
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #78586 <https://github.com/rust-lang/rust/issues/78586>
+
+error: aborting due to 8 previous errors
+
